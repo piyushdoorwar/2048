@@ -1,26 +1,39 @@
-name: Deploy to Cloudflare Pages
+
+name: Deploy to GitHub Pages
 
 on:
-  push:
-    branches: ["main"]
+	workflow_dispatch:
+	push:
+		branches:
+			- main
 
 permissions:
-  contents: read
+	contents: read
+	pages: write
+	id-token: write
 
 concurrency:
-  group: cf-pages
-  cancel-in-progress: true
+	group: pages
+	cancel-in-progress: true
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+	deploy:
+		runs-on: ubuntu-latest
+		environment:
+			name: github-pages
+			url: ${{ steps.deployment.outputs.page_url }}
+		steps:
+			- name: Checkout
+				uses: actions/checkout@v4
 
-      - name: Deploy
-        uses: cloudflare/pages-action@v1
-        with:
-          apiToken: dNMOjp-RxMONTHVxqssuAhVTAK8EzFM2d3tFSmoE
-          accountId: eac1a135b1dfe709e3d8ad2371b84f15
-          projectName: 2048
-          directory: public
+			- name: Setup Pages
+				uses: actions/configure-pages@v5
+
+			- name: Upload artifact
+				uses: actions/upload-pages-artifact@v3
+				with:
+					path: .
+
+			- name: Deploy
+				id: deployment
+				uses: actions/deploy-pages@v4
