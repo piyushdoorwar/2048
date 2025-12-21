@@ -212,7 +212,9 @@
     }
 
     function computeTileSize(){
-      const inner = boardEl.clientWidth - (GAP*2);
+      const innerW = boardEl.clientWidth - (GAP*2);
+      const innerH = boardEl.clientHeight - (GAP*2);
+      const inner = Math.max(0, (innerH > 0 ? Math.min(innerW, innerH) : innerW));
       tileSize = (inner - GAP*(SIZE-1)) / SIZE;
       return tileSize;
     }
@@ -569,6 +571,13 @@
     }
     resetHintTimer();
     window.addEventListener('resize', ()=>{ relayoutAll(); });
+    window.addEventListener('load', ()=>{ requestAnimationFrame(relayoutAll); });
+
+    if('serviceWorker' in navigator){
+      window.addEventListener('load', ()=>{
+        navigator.serviceWorker.register('./sw.js').catch(()=>{});
+      });
+    }
 
     // Observe merges to check win
     const obs = new MutationObserver(()=>{ checkWin(); });
