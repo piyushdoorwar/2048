@@ -3,15 +3,14 @@
 const CACHE_NAME = '2048-static-v1';
 
 const PRECACHE_URLS = [
-  './',
-  './index.html',
-  './styles.css',
-  './scripts.js',
-  './logo.png',
-  './manifest.webmanifest',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-  './icons/maskable-512.png'
+  'index.html',
+  'styles.css',
+  'scripts.js',
+  'logo.png',
+  'manifest.webmanifest',
+  'icons/icon-192.png',
+  'icons/icon-512.png',
+  'icons/maskable-512.png'
 ];
 
 self.addEventListener('install', (event) => {
