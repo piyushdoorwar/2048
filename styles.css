@@ -88,6 +88,25 @@
       .pill .value { font-size: 18px; }
     }
 
+    /* Tablet styles */
+    @media (min-width: 768px) and (max-width: 1023px) {
+      .app { width: min(90vw, 600px); }
+      .pill { min-width: 120px; }
+    }
+
+    /* Desktop styles */
+    @media (min-width: 1024px) {
+      .app { width: min(80vw, 650px); }
+      .pill { min-width: 140px; }
+    }
+
+    /* Landscape orientation on small screens (e.g., foldables or mobiles) */
+    @media (max-width: 767px) and (orientation: landscape) {
+      .app { width: min(90vw, 500px); max-height: 90vh; }
+      header { margin-bottom: 2px; }
+      .toolbar { margin-bottom: 4px; }
+    }
+
     @media (max-width: 600px) {
       header{justify-content:center;}
     }
