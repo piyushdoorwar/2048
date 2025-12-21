@@ -20,6 +20,7 @@
 
     const LS_BEST = 'game2048:best';
     const LS_SOUND = 'game2048:volume';
+    const LS_GAME_STATE = 'game2048:state';
 
     let volume = parseInt(localStorage.getItem(LS_SOUND) || '20', 10) / 100;
     let best = parseInt(localStorage.getItem(LS_BEST) || '0', 10);
@@ -127,6 +128,7 @@
     // ===== Game state =====
     let board, score, idCounter, animating;
     let canUndo = false;
+    let hasWon = false;
     let prevState = null;
     let displayedScore = 0;
 
@@ -138,6 +140,8 @@
         displayedScore = target;
         return;
       }
+      scoreEl.classList.add('score-bump');
+      setTimeout(() => scoreEl.classList.remove('score-bump'), 300);
       const duration = 600; // ms
       const startTime = Date.now();
       function update() {
@@ -165,6 +169,45 @@
       for(let r=0;r<SIZE;r++)for(let c=0;c<SIZE;c++){
         const t = board[r][c];
         if(t) prevState.tilesData.push({id: t.id, value: t.value, r, c});
+      }
+    }
+
+    function saveGameState(){
+      const state = {
+        board: board.map(row => row.map(cell => cell ? {...cell} : null)),
+        score,
+        idCounter,
+        hasWon,
+        tilesData: []
+      };
+      for(let r=0;r<SIZE;r++)for(let c=0;c<SIZE;c++){
+        const t = board[r][c];
+        if(t) state.tilesData.push({id: t.id, value: t.value, r, c});
+      }
+      localStorage.setItem(LS_GAME_STATE, JSON.stringify(state));
+    }
+
+    function loadGameState(){
+      const saved = localStorage.getItem(LS_GAME_STATE);
+      if(!saved) return false;
+      try{
+        const state = JSON.parse(saved);
+        emptyBoard();
+        board = state.board.map(row => row.map(cell => cell ? {...cell} : null));
+        score = state.score;
+        idCounter = state.idCounter;
+        hasWon = state.hasWon || false;
+        scoreEl.textContent = score;
+        displayedScore = score;
+        for(const td of state.tilesData){
+          mountTile(td.r, td.c, td.id, td.value);
+        }
+        canUndo = false;
+        qs('#undoBtn').disabled = true;
+        return true;
+      }catch(e){
+        console.warn('Failed to load game state', e);
+        return false;
       }
     }
 
@@ -352,6 +395,7 @@
         setTimeout(() => boardEl.classList.remove('tilt'), 150);
         await nextFrame();
         spawn();
+        saveGameState();
         if(!canMove() && !hasEmpty()) endGame(false);
         canUndo = true;
         qs('#undoBtn').disabled = false;
@@ -371,14 +415,29 @@
     function endGame(win){
       overlayTitle.textContent = win? 'You Win! 🎉' : 'Game Over';
       overlayMsg.textContent = win? 'You reached 2048. Keep playing or start a new run.' : 'No moves left. Try again?';
+      qs('#closeOverlay').textContent = 'Close';
+      qs('#tryAgain').textContent = 'Try Again';
+      qs('#tryAgain').onclick = () => { resetHintTimer(); initAudio(); reset(true); };
+      qs('#closeOverlay').onclick = () => { resetHintTimer(); overlay.classList.remove('show'); };
       if(win) boardEl.classList.add('win');
       overlay.classList.add('show');
       showToast(win? '2048 reached!' : 'Game over', 1200);
     }
 
     function checkWin(){
-      for(let r=0;r<SIZE;r++)for(let c=0;c<SIZE;c++) if(board[r][c]?.value===2048){ endGame(true); return true; }
+      if(hasWon) return false;
+      for(let r=0;r<SIZE;r++)for(let c=0;c<SIZE;c++) if(board[r][c]?.value===2048){ hasWon = true; endGame(true); return true; }
       return false;
+    }
+
+    function showConfirmation(title, msg, onConfirm){
+      overlayTitle.textContent = title;
+      overlayMsg.textContent = msg;
+      qs('#closeOverlay').textContent = 'Cancel';
+      qs('#tryAgain').textContent = 'New Game';
+      qs('#tryAgain').onclick = () => { overlay.classList.remove('show'); onConfirm(); };
+      qs('#closeOverlay').onclick = () => { overlay.classList.remove('show'); };
+      overlay.classList.add('show');
     }
 
     function reset(newSession=true){
@@ -386,9 +445,13 @@
       boardEl.classList.remove('win');
       canUndo = false;
       prevState = null;
+      hasWon = false;
       qs('#undoBtn').disabled = true;
       spawn(true); spawn(true); // guaranteed 2s to begin
-      if(newSession) setScore(0);
+      if(newSession) {
+        setScore(0);
+        localStorage.removeItem(LS_GAME_STATE);
+      }
       overlay.classList.remove('show');
       showToast('Swipe to begin', 2000);
     }
@@ -420,7 +483,15 @@
     }, {passive:true});
 
     // Buttons
-    qs('#newGame').addEventListener('click', ()=>{ resetHintTimer(); initAudio(); reset(true); });
+    qs('#newGame').addEventListener('click', ()=>{
+      resetHintTimer();
+      initAudio();
+      if(score > 0 || tiles.size > 2){
+        showConfirmation('New Game', 'You\'ll lose your current progress. Start a new game?', () => reset(true));
+      } else {
+        reset(true);
+      }
+    });
     qs('#tryAgain').addEventListener('click', ()=>{ resetHintTimer(); initAudio(); reset(true); });
     qs('#closeOverlay').addEventListener('click', ()=>{ resetHintTimer(); overlay.classList.remove('show'); });
     qs('#undoBtn').addEventListener('click', ()=>{
@@ -456,7 +527,7 @@
     soundBtn.addEventListener('click', () => {
       resetHintTimer();
       soundBtn.style.display = 'none';
-      volumeSlider.style.display = 'block';
+      volumeSlider.style.display = 'flex';
       clearTimeout(volumeTimeout);
       volumeTimeout = setTimeout(() => {
         volumeSlider.style.display = 'none';
@@ -493,7 +564,9 @@
 
     // Init
     computeTileSize();
-    reset(true);
+    if(!loadGameState()){
+      reset(true);
+    }
     resetHintTimer();
     window.addEventListener('resize', ()=>{ relayoutAll(); });
 
