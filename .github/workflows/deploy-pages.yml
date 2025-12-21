@@ -24,4 +24,3 @@ jobs:
           accountId: eac1a135b1dfe709e3d8ad2371b84f15
           projectName: 2048
           directory: public
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
