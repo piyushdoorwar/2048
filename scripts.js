@@ -573,6 +573,16 @@
     window.addEventListener('resize', ()=>{ relayoutAll(); });
     window.addEventListener('load', ()=>{ requestAnimationFrame(relayoutAll); });
 
+    // PWA install logic
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+    });
+    window.addEventListener('appinstalled', () => {
+      deferredPrompt = null;
+    });
+
     if('serviceWorker' in navigator){
       window.addEventListener('load', ()=>{
         navigator.serviceWorker.register('sw.js').catch(()=>{});
