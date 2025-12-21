@@ -1,0 +1,27 @@
+name: Deploy to Cloudflare Pages
+
+on:
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cf-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: dNMOjp-RxMONTHVxqssuAhVTAK8EzFM2d3tFSmoE
+          accountId: eac1a135b1dfe709e3d8ad2371b84f15
+          projectName: 2048
+          directory: public
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
