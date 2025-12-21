@@ -1,6 +1,8 @@
 {
   "name": "2048",
   "short_name": "2048",
+  "description": "Play the classic 2048 sliding tile game",
+  "lang": "en",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
