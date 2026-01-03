@@ -215,10 +215,13 @@
     }
 
     function computeTileSize(){
-      const innerW = boardEl.clientWidth - (GAP*2);
-      const innerH = boardEl.clientHeight - (GAP*2);
-      const inner = Math.max(0, (innerH > 0 ? Math.min(innerW, innerH) : innerW));
-      tileSize = (inner - GAP*(SIZE-1)) / SIZE;
+      // Force board to update dimensions first
+      const rect = boardEl.getBoundingClientRect();
+      const boardSize = Math.min(rect.width, rect.height);
+      const innerSpace = boardSize - (GAP * 2);
+      tileSize = Math.floor((innerSpace - (GAP * (SIZE - 1))) / SIZE);
+      // Ensure minimum viable size
+      if(tileSize < 10) tileSize = 10;
       return tileSize;
     }
 
@@ -274,10 +277,10 @@
     }
 
     function posToTransform(r,c){
-      if(!tileSize) computeTileSize();
+      if(!tileSize || tileSize <= 0) computeTileSize();
       const x = GAP + c*(tileSize + GAP);
       const y = GAP + r*(tileSize + GAP);
-      return `translate(${x}px, ${y}px)`;
+      return `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
     }
 
     function posToTransform_UNUSED(){
@@ -303,6 +306,8 @@
       tiles.set(id, el);
       boardEl.appendChild(el);
 
+      // Ensure tile size is computed before positioning
+      computeTileSize();
       applyTileSize(el);
       el.style.transform = posToTransform(r,c);
     }
@@ -580,9 +585,29 @@
     if(!loadGameState()){
       reset(true);
     }
+    // Force relayout after initial load to ensure proper positioning on all devices
+    setTimeout(() => {
+      computeTileSize();
+      relayoutAll();
+    }, 100);
     resetHintTimer();
-    window.addEventListener('resize', ()=>{ relayoutAll(); });
-    window.addEventListener('load', ()=>{ requestAnimationFrame(relayoutAll); });
+    window.addEventListener('resize', ()=>{ 
+      computeTileSize();
+      relayoutAll(); 
+    });
+    window.addEventListener('load', ()=>{ 
+      requestAnimationFrame(() => {
+        computeTileSize();
+        relayoutAll();
+      }); 
+    });
+    // Handle orientation changes on mobile
+    window.addEventListener('orientationchange', ()=>{
+      setTimeout(() => {
+        computeTileSize();
+        relayoutAll();
+      }, 200);
+    });
 
     // PWA install logic
     let deferredPrompt;
