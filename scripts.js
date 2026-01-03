@@ -35,14 +35,17 @@
     }
 
     function showHints() {
+      if (!board || board.length === 0) return;
       const mergeable = new Map(); // id -> direction
       for(let r=0; r<SIZE; r++) for(let c=0; c<SIZE; c++) {
+        if (!board[r]) continue;
         const t = board[r][c];
         if(!t) continue;
         const dirs = [[0,-1,'left'],[0,1,'right'],[-1,0,'up'],[1,0,'down']];
         for(const [dr,dc,dir] of dirs) {
           const nr = r+dr, nc = c+dc;
           if(nr>=0 && nr<SIZE && nc>=0 && nc<SIZE) {
+            if (!board[nr]) continue;
             const nt = board[nr][nc];
             if(nt && nt.value === t.value) {
               if(!mergeable.has(t.id)) mergeable.set(t.id, dir);
@@ -515,39 +518,47 @@
     });
 
     const volumeControl = qs('#volumeControl');
-    const soundBtn = qs('#soundBtn');
-    const volumeSlider = qs('.volume-slider');
+    const volumeControlBtn = qs('#volumeControlBtn');
+    const volumeSlider = qs('#volumeSlider');
+    const volumePercent = qs('#volumePercent');
     let volumeTimeout;
 
-    function updateSoundBtn() {
-      soundBtn.textContent = `🔊 Sound ${Math.round(volume * 100)}%`;
+    function updateVolumeDisplay() {
+      const percent = Math.round(volume * 100);
+      volumePercent.textContent = `${percent}%`;
+      volumeControl.value = percent;
     }
 
-    volumeControl.value = Math.round(volume * 100);
-    updateSoundBtn();
+    updateVolumeDisplay();
 
-    soundBtn.addEventListener('click', () => {
+    volumeControlBtn.addEventListener('click', (e) => {
+      if (e.target.closest('.volume-slider')) return;
       resetHintTimer();
-      soundBtn.style.display = 'none';
-      volumeSlider.style.display = 'flex';
-      clearTimeout(volumeTimeout);
-      volumeTimeout = setTimeout(() => {
-        volumeSlider.style.display = 'none';
-        soundBtn.style.display = 'block';
-      }, 2000);
+      volumeSlider.classList.toggle('active');
+      if (volumeSlider.classList.contains('active')) {
+        clearTimeout(volumeTimeout);
+        volumeTimeout = setTimeout(() => {
+          volumeSlider.classList.remove('active');
+        }, 3000);
+      }
     });
 
     volumeControl.addEventListener('input', (e) => {
       resetHintTimer();
       volume = e.target.value / 100;
       localStorage.setItem(LS_SOUND, e.target.value);
-      updateSoundBtn();
+      updateVolumeDisplay();
       if(volume > 0) initAudio();
       clearTimeout(volumeTimeout);
       volumeTimeout = setTimeout(() => {
-        volumeSlider.style.display = 'none';
-        soundBtn.style.display = 'block';
-      }, 2000);
+        volumeSlider.classList.remove('active');
+      }, 3000);
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!volumeControlBtn.contains(e.target)) {
+        volumeSlider.classList.remove('active');
+      }
     });
 
     // Help modal reuse of overlay

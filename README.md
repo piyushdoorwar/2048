@@ -87,7 +87,7 @@ php -S localhost:8080
 ```
 2048/
 ├── index.html          # Main HTML file
-├── styles.css          # CRED-inspired styling
+├── styles.css          # Premium dark styling
 ├── scripts.js          # Game logic and interactions
 ├── favicon.svg         # SVG favicon
 ├── manifest.json       # PWA manifest (legacy)
@@ -101,7 +101,7 @@ php -S localhost:8080
 ## 🛠️ Technologies
 
 - **HTML5** - Semantic markup
-- **CSS3** - Modern styling with gradients, animations, and glassmorphism
+- **CSS3** - Modern styling with gradients and animations
 - **Vanilla JavaScript** - No frameworks, pure JS for game logic
 - **PWA** - Progressive Web App with service worker
 - **SVG** - Scalable vector graphics for icons
@@ -109,14 +109,15 @@ php -S localhost:8080
 ## 🎨 Color Palette
 
 ```css
---bg: #0a0d15              /* Primary background */
---panel: #12141f           /* Card background */
---panel-2: #1a1d2e         /* Secondary panel */
+--bg: #0d0d0d              /* Primary background */
+--panel: #1a1a1a           /* Card background */
+--panel-2: #242424         /* Secondary panel */
 --accent: #6c63ff          /* Primary accent (purple) */
 --accent-2: #00d9ff        /* Secondary accent (cyan) */
+--accent-yellow: #ffd93d   /* Yellow accent */
 --text: #ffffff            /* Primary text */
---text-secondary: #b8bfd8  /* Secondary text */
---muted: #7a8199           /* Muted text */
+--text-secondary: #a0a0a0  /* Secondary text */
+--muted: #666666           /* Muted text */
 ```
 
 ## 📱 Browser Support
