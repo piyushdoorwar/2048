@@ -68,25 +68,164 @@
     }
     let ac; // AudioContext lazy
     let audioUnlocked = false;
-    function beep(value=2){
+    let mergeCount = 0; // Track merges in current move for combo sounds
+    let lastMergeValue = 0;
+    
+    // Comprehensive sound system
+    const SOUNDS = {
+      move: { freq: 280, duration: 0.06, type: 'sine', vol: 0.3 },
+      spawn: { freq: 400, duration: 0.08, type: 'triangle', vol: 0.25 },
+      merge2: { freq: 440, duration: 0.10, type: 'sine', vol: 0.5 },
+      merge4: { freq: 494, duration: 0.10, type: 'sine', vol: 0.5 },
+      merge8: { freq: 554, duration: 0.11, type: 'sine', vol: 0.55 },
+      merge16: { freq: 622, duration: 0.11, type: 'sine', vol: 0.55 },
+      merge32: { freq: 698, duration: 0.12, type: 'sine', vol: 0.6 },
+      merge64: { freq: 784, duration: 0.12, type: 'sine', vol: 0.6 },
+      merge128: { freq: 880, duration: 0.13, type: 'sine', vol: 0.65 },
+      merge256: { freq: 988, duration: 0.13, type: 'sine', vol: 0.65 },
+      merge512: { freq: 1108, duration: 0.14, type: 'sine', vol: 0.7 },
+      merge1024: { freq: 1244, duration: 0.15, type: 'sine', vol: 0.7 },
+      merge2048: { freq: 1397, duration: 0.18, type: 'triangle', vol: 0.8 },
+      invalid: { freq: 180, duration: 0.12, type: 'sawtooth', vol: 0.4 },
+      undo: { type: 'reverse' },
+      newGame: { type: 'startup' },
+      milestone512: { type: 'achievement', notes: [523, 659, 784] },
+      milestone1024: { type: 'achievement', notes: [587, 740, 880] },
+      milestone2048: { type: 'achievement', notes: [659, 831, 988, 1175] },
+      win: { type: 'celebration' },
+      gameOver: { type: 'descend' },
+      combo2: { freq: 1320, duration: 0.08, type: 'square', vol: 0.3 },
+      combo3: { freq: 1480, duration: 0.09, type: 'square', vol: 0.35 },
+      combo4: { freq: 1660, duration: 0.10, type: 'square', vol: 0.4 }
+    };
+    
+    function playSound(soundType, value = null){
       if(volume === 0) return;
-      // If audio isn't unlocked yet (common on mobile/WebView), skip quietly.
       if(!audioUnlocked) return;
       try{
-        const o = ac.createOscillator();
-        const g = ac.createGain();
-        o.type = 'sine';
-        o.frequency.value = 220 + Math.log2(value) * 60;
-
         const now = ac.currentTime;
-        g.gain.setValueAtTime(0.0001 * volume, now);
-        g.gain.exponentialRampToValueAtTime(1 * volume, now + 0.01);
-        g.gain.exponentialRampToValueAtTime(0.0001 * volume, now + 0.12);
-
-        o.connect(g).connect(ac.destination);
-        o.start(now);
-        o.stop(now + 0.13);
+        
+        if(soundType === 'merge' && value){
+          const soundKey = `merge${value}`;
+          const sound = SOUNDS[soundKey] || SOUNDS.merge2;
+          playSingleTone(sound.freq, sound.duration, sound.type, now, sound.vol);
+          
+          // Track combo
+          mergeCount++;
+          lastMergeValue = value;
+          
+          // Play milestone sounds
+          if(value === 512) setTimeout(() => playMilestone('milestone512'), 200);
+          if(value === 1024) setTimeout(() => playMilestone('milestone1024'), 200);
+          if(value === 2048) setTimeout(() => playMilestone('milestone2048'), 200);
+          
+        } else if(soundType === 'move'){
+          const sound = SOUNDS.move;
+          playSingleTone(sound.freq, sound.duration, sound.type, now, sound.vol);
+        } else if(soundType === 'spawn'){
+          const sound = SOUNDS.spawn;
+          playSingleTone(sound.freq, sound.duration, sound.type, now, sound.vol);
+        } else if(soundType === 'invalid'){
+          const sound = SOUNDS.invalid;
+          playSingleTone(sound.freq, sound.duration, sound.type, now, sound.vol);
+        } else if(soundType === 'combo'){
+          const comboKey = `combo${Math.min(value, 4)}`;
+          const sound = SOUNDS[comboKey];
+          if(sound) playSingleTone(sound.freq, sound.duration, sound.type, now, sound.vol);
+        } else if(soundType === 'win'){
+          playCelebration(now);
+        } else if(soundType === 'gameOver'){
+          playDescend(now);
+        } else if(soundType === 'undo'){
+          playReverse(now);
+        } else if(soundType === 'newGame'){
+          playStartup(now);
+        }
       }catch(e){/* ignore */}
+    }
+    
+    function playSingleTone(freq, duration, type, startTime, volMult = 0.5){
+      const o = ac.createOscillator();
+      const g = ac.createGain();
+      o.type = type;
+      o.frequency.value = freq;
+      
+      const targetVol = volMult * volume;
+      g.gain.setValueAtTime(0.0001, startTime);
+      g.gain.exponentialRampToValueAtTime(targetVol, startTime + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+      
+      o.connect(g).connect(ac.destination);
+      o.start(startTime);
+      o.stop(startTime + duration + 0.01);
+    }
+    
+    function playMilestone(milestoneKey){
+      if(volume === 0 || !audioUnlocked) return;
+      const sound = SOUNDS[milestoneKey];
+      if(!sound || !sound.notes) return;
+      const now = ac.currentTime;
+      sound.notes.forEach((freq, i) => {
+        setTimeout(() => {
+          playSingleTone(freq, 0.25, 'sine', ac.currentTime, 0.4);
+        }, i * 100);
+      });
+    }
+    
+    function playCelebration(startTime){
+      // Triumphant ascending arpeggio
+      const notes = [523, 659, 784, 1047, 1319]; // C-E-G-C-E
+      notes.forEach((freq, i) => {
+        setTimeout(() => {
+          playSingleTone(freq, 0.35, 'sine', ac.currentTime, 0.35);
+        }, i * 90);
+      });
+    }
+    
+    function playDescend(startTime){
+      // Sad descending tones
+      const notes = [440, 392, 349, 294, 262];
+      notes.forEach((freq, i) => {
+        setTimeout(() => {
+          playSingleTone(freq, 0.18, 'triangle', ac.currentTime, 0.35);
+        }, i * 110);
+      });
+    }
+    
+    function playReverse(startTime){
+      // Quick descending chirp for undo
+      const notes = [880, 740, 622];
+      notes.forEach((freq, i) => {
+        setTimeout(() => {
+          playSingleTone(freq, 0.06, 'sine', ac.currentTime, 0.3);
+        }, i * 40);
+      });
+    }
+    
+    function playStartup(startTime){
+      // Friendly ascending welcome
+      const notes = [392, 494, 587];
+      notes.forEach((freq, i) => {
+        setTimeout(() => {
+          playSingleTone(freq, 0.12, 'triangle', ac.currentTime, 0.35);
+        }, i * 80);
+      });
+    }
+    
+    function playComboSound(){
+      if(mergeCount >= 2){
+        setTimeout(() => playSound('combo', mergeCount), 150);
+      }
+    }
+    
+    function resetMergeCount(){
+      mergeCount = 0;
+      lastMergeValue = 0;
+    }
+    
+    // Legacy beep for backward compatibility
+    function beep(value=2){
+      playSound('merge', value);
     }
 
 
@@ -351,6 +490,8 @@
       saveState();
       const [dr,dc]=DIRS[dir];
       let moved=false;
+      let hasMoves = false;
+      resetMergeCount();
 
       // order of traversal matters
       const rows = [...Array(SIZE).keys()];
@@ -393,6 +534,7 @@
             board[nr][nc] = {id:t.id, value:t.value, merged:false};
             board[r][c]=null;
             updateTile(t.id,nr,nc,t.value);
+            hasMoves = true;
           }
         }
       }
@@ -400,17 +542,25 @@
       for(let r=0;r<SIZE;r++) for(let c=0;c<SIZE;c++) if(board[r][c]) board[r][c].merged=false;
 
       if(moved){
+        // Play combo sound if multiple merges
+        playComboSound();
+        
+        // Play move sound if tiles slid without merging
+        if(hasMoves && mergeCount === 0) playSound('move');
+        
         navigator.vibrate?.(50); // haptic feedback
         boardEl.classList.add('tilt');
         setTimeout(() => boardEl.classList.remove('tilt'), 150);
         await nextFrame();
         spawn();
+        playSound('spawn');
         saveGameState();
         if(!canMove() && !hasEmpty()) endGame(false);
         canUndo = true;
         qs('#undoBtn').disabled = false;
       } else {
         navigator.vibrate?.([30, 50, 30]); // haptic feedback for invalid move
+        playSound('invalid');
         showToast('No move that way', 700);
       }
       animating=false;
@@ -429,7 +579,12 @@
       qs('#tryAgain').textContent = 'Try Again';
       qs('#tryAgain').onclick = () => { resetHintTimer(); initAudio(); reset(true); };
       qs('#closeOverlay').onclick = () => { resetHintTimer(); overlay.classList.remove('show'); };
-      if(win) boardEl.classList.add('win');
+      if(win) {
+        boardEl.classList.add('win');
+        setTimeout(() => playSound('win'), 300);
+      } else {
+        setTimeout(() => playSound('gameOver'), 200);
+      }
       overlay.classList.add('show');
       showToast(win? '2048 reached!' : 'Game over', 1200);
     }
@@ -456,11 +611,13 @@
       canUndo = false;
       prevState = null;
       hasWon = false;
+      resetMergeCount();
       qs('#undoBtn').disabled = true;
       spawn(true); spawn(true); // guaranteed 2s to begin
       if(newSession) {
         setScore(0);
         localStorage.removeItem(LS_GAME_STATE);
+        playSound('newGame');
       }
       overlay.classList.remove('show');
       showToast('Swipe to begin', 2000);
@@ -508,16 +665,19 @@
       resetHintTimer();
       if(!canUndo || animating) return;
       initAudio();
+      playSound('undo');
       // restore
       emptyBoard();
       board = prevState.board.map(row => row.map(cell => cell ? {...cell} : null));
       score = prevState.score;
       idCounter = prevState.idCounter;
       scoreEl.textContent = score;
+      displayedScore = score;
       for(const td of prevState.tilesData){
         mountTile(td.r, td.c, td.id, td.value);
       }
       canUndo = false;
+      resetMergeCount();
       qs('#undoBtn').disabled = true;
       showToast('Undid last move', 1000);
     });
